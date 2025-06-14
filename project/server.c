@@ -34,26 +34,46 @@ int main(int argc, char** argv) {
 
     // Listen for new clients
     // listen()
+    int did_find_client = listen(sockfd, 1);
+    if (did_find_client < 0) return errno;
+    
 
     struct sockaddr_in client_addr; // Same information, but about client
     socklen_t client_size = sizeof(client_addr);
 
     // Accept client connection
     // clientfd = accept()
+    int clientfd = accept(sockfd, (struct sockaddr*) &client_addr, &client_size);
+    if (clientfd < 0) return errno;
 
     // Set the socket nonblocking
-    // int flags = fcntl(clientfd, F_GETFL);
-    // flags |= O_NONBLOCK;
-    // fcntl(clientfd, F_SETFL, flags);
-    // setsockopt(clientfd, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
-    // setsockopt(clientfd, SOL_SOCKET, SO_REUSEPORT, &(int) {1}, sizeof(int));
+    int flags = fcntl(clientfd, F_GETFL);
+    flags |= O_NONBLOCK;
+    fcntl(clientfd, F_SETFL, flags);
+    setsockopt(clientfd, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
+    setsockopt(clientfd, SOL_SOCKET, SO_REUSEPORT, &(int) {1}, sizeof(int));
 
     init_sec(SERVER_CLIENT_HELLO_AWAIT, NULL, argc > 2);
-    // while (clientfd) {
-    //     // receive data
-    //     // send data
-    // }
-    // close(clientfd);
-    // close(sockfd);
-    // return 0;
-}
+    uint8_t client_buf[1024];
+    uint8_t send_buf[1024];
+    while (clientfd) {
+        int bytes_recvd = recv(clientfd, client_buf, sizeof(client_buf), 0);
+        if (bytes_recvd > 0) {
+            output_sec(client_buf, bytes_recvd);
+        }
+
+        ssize_t send_len = input_sec(send_buf, sizeof(send_buf));
+
+        if (send_len > 0) {
+            if (send(clientfd, send_buf, send_len, 0) < 0) {
+                fprintf(stderr, "Error: Could not send message to client\n");
+                close(clientfd);
+                break;
+            }
+            printf("Message sent to client\n");
+        }
+    }
+    close(clientfd);
+    close(sockfd);
+    return 0;
+    }

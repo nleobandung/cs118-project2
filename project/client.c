@@ -53,6 +53,11 @@ int main(int argc, char** argv) {
     init_sec(CLIENT_CLIENT_HELLO_SEND, argv[1], argc > 3);
     // Connect to server
     // connect()
+    connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if (sockfd < 0) {
+        fprintf(stderr, "Error: Could not connect to server\n");
+        exit(255);
+    }
 
     // Set the socket nonblocking
     int flags = fcntl(sockfd, F_GETFL);
@@ -61,8 +66,30 @@ int main(int argc, char** argv) {
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &(int) {1}, sizeof(int));
 
+    uint8_t send_buf[1024];
+    ssize_t send_len = input_sec(send_buf, sizeof(send_buf));
+
+    if (send_len > 0) {
+        if (send(sockfd, send_buf, send_len, 0) < 0) {
+            fprintf(stderr, "Error: Could not send Client Hello message\n");
+            close(sockfd);
+            exit(255);
+        }
+        printf("Client Hello message sent\n");
+    } else {
+        fprintf(stderr, "Error: Failed to generate Client Hello message\n");
+        close(sockfd);
+        exit(255);
+    }
+
+    uint8_t client_buf[1024];
+
     while(1) {
-        // receive data
+        int bytes_recvd = recv(sockfd, client_buf, sizeof(client_buf), 0);
+        if (bytes_recvd > 0) {
+            output_sec(client_buf, bytes_recvd);
+        }
+        ssize_t send_len = input_sec(send_buf, sizeof(send_buf));
         // send data
     }
     close(sockfd);
