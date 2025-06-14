@@ -90,7 +90,13 @@ int main(int argc, char** argv) {
             output_sec(client_buf, bytes_recvd);
         }
         ssize_t send_len = input_sec(send_buf, sizeof(send_buf));
-        // send data
+        if (send_len > 0) {
+            if (send(sockfd, send_buf, send_len, 0) < 0) {
+                fprintf(stderr, "Error: Could not send message\n");
+                close(sockfd);
+                exit(255);
+            }
+        }
     }
     close(sockfd);
     return 0;
